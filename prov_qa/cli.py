@@ -1,4 +1,5 @@
 from __future__ import annotations
+"""CLI for asking structured questions about provenance JSONL outputs."""
 
 import argparse
 import json
@@ -17,6 +18,7 @@ if load_dotenv is not None:
 
 
 def read_jsonl(path: str) -> List[Dict[str, Any]]:
+    """Read JSONL into a list of dictionaries, ignoring empty lines."""
     out: List[Dict[str, Any]] = []
     p = Path(path)
     if not p.exists():
@@ -31,6 +33,7 @@ def read_jsonl(path: str) -> List[Dict[str, Any]]:
 
 
 def _extract_traj_frame(doc: Dict[str, Any]) -> Tuple[Optional[str], Optional[int]]:
+    """Extract `(traj_id, frame_id)` from top-level fields or FrameInput entity."""
     tid = doc.get("traj_id")
     fid = doc.get("frame_id")
     if isinstance(tid, str) and isinstance(fid, int):
@@ -59,11 +62,13 @@ def _extract_traj_frame(doc: Dict[str, Any]) -> Tuple[Optional[str], Optional[in
 
 
 def _bundle_id(doc: Dict[str, Any]) -> str:
+    """Return provenance bundle identifier if present."""
     b = doc.get("bundle_id")
     return b if isinstance(b, str) else ""
 
 
 def list_available_pairs(docs: List[Dict[str, Any]]) -> List[Tuple[str, int, str]]:
+    """List sortable `(traj_id, frame_id, bundle_id)` tuples extracted from docs."""
     pairs: List[Tuple[str, int, str]] = []
     for d in docs:
         tid, fid = _extract_traj_frame(d)
@@ -74,6 +79,7 @@ def list_available_pairs(docs: List[Dict[str, Any]]) -> List[Tuple[str, int, str
 
 
 def _safe_json(obj: Any, max_chars: int = 14000) -> str:
+    """Dump JSON with a defensive max-size cap."""
     s = json.dumps(obj, indent=2, sort_keys=True, default=str)
     if len(s) <= max_chars:
         return s
@@ -81,6 +87,7 @@ def _safe_json(obj: Any, max_chars: int = 14000) -> str:
 
 
 def _find_doc_strict(docs: List[Dict[str, Any]], traj_id: str, frame_id: int) -> Dict[str, Any]:
+    """Return exact matching document or raise `KeyError`."""
     for d in docs:
         tid, fid = _extract_traj_frame(d)
         if tid == traj_id and fid == frame_id:
@@ -89,6 +96,7 @@ def _find_doc_strict(docs: List[Dict[str, Any]], traj_id: str, frame_id: int) ->
 
 
 def _extract_frame_entity(doc: Dict[str, Any]) -> Dict[str, Any]:
+    """Return the first `FrameInput` entity from a provenance document."""
     ents = doc.get("entities", [])
     if not isinstance(ents, list):
         return {}
@@ -99,6 +107,7 @@ def _extract_frame_entity(doc: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _extract_advice_entity(doc: Dict[str, Any]) -> Dict[str, Any]:
+    """Return the first `AdviceOutput` entity from a provenance document."""
     ents = doc.get("entities", [])
     if not isinstance(ents, list):
         return {}
@@ -109,6 +118,7 @@ def _extract_advice_entity(doc: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _extract_advisory_evidence(doc: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Return advisory evidence list attached to advisory decision activity."""
     acts = doc.get("activities", [])
     if not isinstance(acts, list):
         return []
@@ -126,6 +136,7 @@ def _extract_advisory_evidence(doc: Dict[str, Any]) -> List[Dict[str, Any]]:
 
 
 def _pick(d: Any, keys: List[str]) -> Any:
+    """Return first non-null value from candidate keys in a dictionary."""
     if not isinstance(d, dict):
         return None
     for k in keys:
@@ -135,6 +146,7 @@ def _pick(d: Any, keys: List[str]) -> Any:
 
 
 def summarize_doc(doc: Dict[str, Any]) -> Dict[str, Any]:
+    """Build compact summary payload consumed by QA and deterministic fallback."""
     tid, fid = _extract_traj_frame(doc)
 
     frame_ent = _extract_frame_entity(doc)
@@ -217,6 +229,7 @@ def summarize_doc(doc: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _first_stop_targets_from_advice(advice_docs: List[Dict[str, Any]]) -> Dict[str, int]:
+    """Compute earliest stop frame per trajectory from advice stream."""
     first: Dict[str, int] = {}
     for a in advice_docs:
         if not isinstance(a, dict):
@@ -233,6 +246,7 @@ def _first_stop_targets_from_advice(advice_docs: List[Dict[str, Any]]) -> Dict[s
 
 
 def _pick_global_earliest(first_by_traj: Dict[str, int]) -> Tuple[Optional[str], Optional[int]]:
+    """Select globally earliest `(traj_id, frame_id)` from per-traj map."""
     if not first_by_traj:
         return None, None
     items = sorted(first_by_traj.items(), key=lambda kv: (kv[1], kv[0]))
@@ -247,6 +261,7 @@ def build_context(
     strict: bool,
     include_full_doc: bool,
 ) -> str:
+    """Assemble the context JSON passed to the LLM or deterministic backend."""
     if not prov_docs:
         return "No provenance documents found."
 
@@ -284,6 +299,7 @@ def build_context(
 
 
 def get_chat_model() -> Optional[Any]:
+    """Instantiate configured chat backend (OpenAI/Ollama) when available."""
     provider = os.getenv("SHADOW_LLM_PROVIDER", "auto").strip().lower()
 
     if provider in ("auto", "openai"):
@@ -324,6 +340,7 @@ def get_chat_model() -> Optional[Any]:
 
 
 def deterministic_answer(question: str, context: str) -> str:
+    """Fallback answer mode used when no chat model is configured."""
     return (
         "Deterministic fallback (no LLM configured).\n"
         f"Question: {question}\n\n"
@@ -333,6 +350,7 @@ def deterministic_answer(question: str, context: str) -> str:
 
 
 def answer_with_llm(question: str, context: str) -> str:
+    """Answer question using chat model with strict output schema instructions."""
     llm = get_chat_model()
     if llm is None:
         return deterministic_answer(question, context)
@@ -383,6 +401,7 @@ def answer_with_llm(question: str, context: str) -> str:
 
 
 def main() -> None:
+    """Entry point for provenance QA command-line usage."""
     p = argparse.ArgumentParser()
     p.add_argument("--prov", default="outputs/prov.jsonl", help="Path to provenance JSONL.")
     p.add_argument("--advice", default="outputs/advice.jsonl", help="Path to advice JSONL (for --first-stop).")

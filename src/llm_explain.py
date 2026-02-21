@@ -1,16 +1,19 @@
 # src/llm_explain.py
 from __future__ import annotations
+"""Optional LLM-based rationale augmentation for advisory outputs."""
 
 import os
 from typing import Any, Dict, List, Optional
 
 
 def _env_truthy(name: str, default: str = "0") -> bool:
+    """Interpret environment variable values with permissive truthy parsing."""
     v = os.getenv(name, default).strip().lower()
     return v in ("1", "true", "yes", "y", "on")
 
 
 def llm_explain_enabled(cfg: Dict[str, Any]) -> bool:
+    """Return whether LLM explanations are enabled via env/config."""
     # priority: env var -> config
     if _env_truthy("A4MD_LLM_EXPLAIN", "0"):
         return True

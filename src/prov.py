@@ -1,4 +1,5 @@
 from __future__ import annotations
+"""Helpers for building simplified provenance documents per processed frame."""
 from typing import Any, Dict, List
 
 from schemas import AdviceOutput, FrameInput
@@ -12,6 +13,7 @@ def build_prov_document_frame(
     evidence: List[Dict[str, Any]],
     window_state: Any,
 ) -> Dict[str, Any]:
+    """Build a single provenance bundle linking input, state, and decision."""
     frame_hash = sha256_json({
         "run_id": frame.run_id,
         "traj_id": frame.traj_id,

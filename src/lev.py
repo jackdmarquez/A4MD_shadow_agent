@@ -1,4 +1,5 @@
 from __future__ import annotations
+"""LEV (largest eigenvalue) feature computation."""
 import numpy as np
 
 try:
@@ -8,6 +9,11 @@ except Exception:
 
 
 def compute_lev(points: np.ndarray, atom_index_groups) -> float:
+    """Compute LEV from atomic points and index groups.
+
+    Each group is mapped to a centroid, pairwise squared distances are assembled
+    into a symmetric matrix, and the largest eigenvalue is returned.
+    """
     if lin_alg is None:
         raise RuntimeError("scipy is required to compute LEV")
 

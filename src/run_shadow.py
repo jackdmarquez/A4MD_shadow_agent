@@ -1,4 +1,5 @@
 from __future__ import annotations
+"""CLI/runtime entrypoint for processing frame streams in shadow mode."""
 
 import argparse
 import json
@@ -30,6 +31,7 @@ def _load_dotenv_if_present() -> None:
 
 
 def iter_frames_jsonl(path: str) -> Iterable[FrameInput]:
+    """Yield validated frame objects from a JSONL file."""
     with open(path, "r", encoding="utf-8") as f:
         for line in f:
             if line.strip():
@@ -159,6 +161,7 @@ def run_shadow(
 
 
 if __name__ == "__main__":
+    """Command-line interface for shadow runs."""
     # Load .env as early as possible for CLI runs
     _load_dotenv_if_present()
 

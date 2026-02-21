@@ -1,5 +1,6 @@
 # eval/run_demo.py
 from __future__ import annotations
+"""Run a complete shadow demo and emit a small markdown metrics report."""
 
 import json
 import sys
@@ -18,6 +19,7 @@ from utils import ensure_dirs, load_yaml  # noqa: E402
 
 
 def read_jsonl(path: str):
+    """Load JSONL records from disk; return an empty list when missing."""
     out = []
     try:
         with open(path, "r", encoding="utf-8") as f:
@@ -30,6 +32,7 @@ def read_jsonl(path: str):
 
 
 def main(config_path: str, input_path: str, report_path: str) -> None:
+    """Execute shadow run and summarize first stop frame per trajectory."""
     ensure_dirs("reports")
     cfg = load_yaml(config_path)
 

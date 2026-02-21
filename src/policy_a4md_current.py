@@ -1,4 +1,5 @@
 from __future__ import annotations
+"""Current A4MD policy implementation for LEV/ESS early-stop advisory."""
 
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
@@ -42,6 +43,8 @@ def n_effective_FTZ(x: np.ndarray) -> float:
 
 @dataclass
 class A4MDDecision:
+    """Policy decision with trigger markers and evidence payload."""
+
     advice: str
     confidence: float
     end_ev: int
@@ -52,6 +55,8 @@ class A4MDDecision:
 
 @dataclass
 class A4MDPolicyState:
+    """Rolling policy state carried across frames in a trajectory."""
+
     n_frames_seen: int = 0
     end_ev: Optional[int] = None
     end_ess: Optional[int] = None
@@ -66,7 +71,10 @@ class A4MDPolicyState:
 
 
 class A4MDCurrentPolicy:
+    """Stateful policy combining LEV and ESS criteria with configurable mode."""
+
     def __init__(self, cfg: Dict[str, Any]):
+        """Read policy thresholds/window settings from configuration."""
         p = cfg["a4md_current"]
         self.window_lev = int(p["window_lev"])
         self.window_ess = int(p["window_ess"])
@@ -85,6 +93,7 @@ class A4MDCurrentPolicy:
             self.window_ess = 1
 
     def init_state(self) -> A4MDPolicyState:
+        """Create an initialized empty policy state."""
         return A4MDPolicyState(
             stable_evs=[0] * self.window_lev,
             last_idx=0,
@@ -94,6 +103,7 @@ class A4MDCurrentPolicy:
         )
 
     def update(self, st: A4MDPolicyState, frame_id: int, ev: float) -> A4MDDecision:
+        """Advance policy state for one frame and return advisory decision."""
         # Normalize nullable lists
         if st.stable_evs is None:
             st.stable_evs = [0] * self.window_lev

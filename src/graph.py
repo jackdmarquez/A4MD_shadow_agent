@@ -1,5 +1,6 @@
 # src/graph.py
 from __future__ import annotations
+"""LangGraph wiring for ingest, feature computation, policy, and provenance."""
 
 from typing import Any, Dict, List, TypedDict
 
@@ -19,6 +20,8 @@ from llm_explain import llm_explain_bullets
 
 
 class AgentState(TypedDict, total=False):
+    """Mutable state passed between graph nodes."""
+
     config: Dict[str, Any]
     frame: FrameInput
     policy_state: Dict[str, Any]
@@ -29,12 +32,14 @@ class AgentState(TypedDict, total=False):
 
 
 def _mark(state: AgentState, node: str, t: Timer, start: str) -> None:
+    """Record timing metadata for a graph node."""
     timing = state.get("timing", {})
     timing[node] = {"start": start, "end": utc_now_iso(), "latency_ms": t.elapsed_ms()}
     state["timing"] = timing
 
 
 def node_ingest(state: AgentState) -> AgentState:
+    """Initialize per-trajectory policy state container if absent."""
     t = Timer()
     start = utc_now_iso()
     if "policy_state" not in state:
@@ -44,6 +49,7 @@ def node_ingest(state: AgentState) -> AgentState:
 
 
 def node_compute_lev(state: AgentState) -> AgentState:
+    """Compute LEV when raw geometry is present and LEV is missing."""
     t = Timer()
     start = utc_now_iso()
     fr = state["frame"]
@@ -82,6 +88,7 @@ def _extract_lev_hits(evidence: List[Dict[str, Any]]) -> tuple[int, int]:
 
 
 def node_advisory(state: AgentState) -> AgentState:
+    """Run the current policy update and emit normalized `AdviceOutput`."""
     t = Timer()
     start = utc_now_iso()
     cfg = state["config"]
@@ -135,6 +142,7 @@ def node_advisory(state: AgentState) -> AgentState:
 
 
 def _explain_impl(state: AgentState) -> AgentState:
+    """Create deterministic rationale bullets from evidence and decision mode."""
     t = Timer()
     start = utc_now_iso()
     fr = state["frame"]
@@ -229,6 +237,7 @@ def node_llm_explanation(state: AgentState) -> AgentState:
 
 
 def node_prov(state: AgentState) -> AgentState:
+    """Materialize per-frame provenance document from current graph state."""
     t = Timer()
     start = utc_now_iso()
     state["prov_doc"] = build_prov_document_frame(
@@ -243,6 +252,7 @@ def node_prov(state: AgentState) -> AgentState:
 
 
 def build_graph() -> Any:
+    """Construct and compile-ready graph topology for the advisory pipeline."""
     g = StateGraph(AgentState)
     g.add_node("ingest_frame", node_ingest)
     g.add_node("compute_lev", node_compute_lev)

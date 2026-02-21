@@ -1,4 +1,5 @@
 from __future__ import annotations
+"""Generate synthetic frame JSONL data for shadow-mode demos/tests."""
 
 import json
 from dataclasses import dataclass
@@ -11,12 +12,15 @@ from utils import ensure_dirs
 
 @dataclass
 class SynthCfg:
+    """Configuration for synthetic trajectory generation."""
+
     seed: int = 42
     n_traj: int = 10
     frames_per_traj: int = 200
 
 
 def generate(out_path: str, cfg: SynthCfg) -> None:
+    """Write synthetic trajectories with LEV values that eventually stabilize."""
     rng = np.random.default_rng(cfg.seed)
     ensure_dirs("data")
 

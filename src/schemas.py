@@ -1,4 +1,5 @@
 from __future__ import annotations
+"""Pydantic schemas exchanged between ingestion, policy, and logging layers."""
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
@@ -7,17 +8,23 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class Advice(str, Enum):
+    """Canonical advisory outcomes produced by the policy graph."""
+
     CONTINUE = "continue"
     CONSIDER_EARLY_STOP = "consider-early-stop"
 
 
 class FrameFeatures(BaseModel):
+    """Per-frame derived or precomputed numerical features."""
+
     model_config = ConfigDict(extra="forbid")
     lev: Optional[float] = None
     ess: Optional[float] = None
 
 
 class FrameInput(BaseModel):
+    """Single frame of an MD trajectory with optional geometric payload."""
+
     model_config = ConfigDict(extra="allow")
     run_id: str
     traj_id: str
@@ -30,6 +37,8 @@ class FrameInput(BaseModel):
 
 
 class AdviceOutput(BaseModel):
+    """Decision artifact emitted by advisory logic and persisted to JSONL."""
+
     model_config = ConfigDict(extra="forbid")
     advice: Advice
     confidence: float = Field(..., ge=0.0, le=1.0)

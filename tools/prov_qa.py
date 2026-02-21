@@ -1,15 +1,18 @@
 from __future__ import annotations
+"""Thin launcher that ensures `prov_qa` package imports resolve correctly."""
 
 import sys
 from pathlib import Path
 
 
 def _repo_root() -> Path:
+    """Resolve repository root from the `tools/` directory."""
     # tools/ -> repo root
     return Path(__file__).resolve().parents[1]
 
 
 def _ensure_repo_on_path() -> None:
+    """Inject repo root into `sys.path` so package imports are unambiguous."""
     root = str(_repo_root())
     # Put repo root BEFORE tools/ so `import prov_qa` resolves to the package folder `prov_qa/`
     if root not in sys.path:
