@@ -1,0 +1,23 @@
+graph:
+  graph_version: "shadow-0.3.0"
+  max_latency_ms: 50
+
+policy:
+  kind: "a4md_current"
+  policy_version: "a4md-current-1.0.0"
+
+a4md_current:
+  window_lev: 10
+  window_ess: 20
+  range_min: 0.0
+  range_max: 100.0
+  range_th: 0.0
+  stable_th_lev: 80.0
+  var_th_ess: 5.0
+  decision_mode: "min"
+  both_mode: "last"
+
+logging:
+  advice_path: "outputs/advice.jsonl"
+  prov_path: "outputs/prov.jsonl"
+  sink: "local"
