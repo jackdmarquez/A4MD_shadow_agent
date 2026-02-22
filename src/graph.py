@@ -1,22 +1,22 @@
 # src/graph.py
 from __future__ import annotations
+
 """LangGraph wiring for ingest, feature computation, policy, and provenance."""
 
+import math
 from typing import Any, Dict, List, TypedDict
 
-from langgraph.graph import StateGraph, END
 from langchain_core.runnables import RunnableLambda
+from langgraph.graph import END, StateGraph
 
-import math
-
-from schemas import AdviceOutput, FrameInput, Advice
-from utils import Timer, utc_now_iso
 from lev import compute_lev
+
+# optional post-hoc explanation node
+from llm_explain import llm_explain_bullets
 from policy_a4md_current import A4MDCurrentPolicy, A4MDPolicyState
 from prov import build_prov_document_frame
-
-# NEW (Paso 1B): optional post-hoc explanation node
-from llm_explain import llm_explain_bullets
+from schemas import Advice, AdviceOutput, FrameInput
+from utils import Timer, utc_now_iso
 
 
 class AgentState(TypedDict, total=False):
@@ -53,7 +53,11 @@ def node_compute_lev(state: AgentState) -> AgentState:
     t = Timer()
     start = utc_now_iso()
     fr = state["frame"]
-    if fr.features.lev is None and fr.points is not None and fr.atom_index_groups is not None:
+    if (
+        fr.features.lev is None
+        and fr.points is not None
+        and fr.atom_index_groups is not None
+    ):
         fr.features.lev = compute_lev(fr.points, fr.atom_index_groups)
     _mark(state, "compute_lev", t, start)
     return state
@@ -119,7 +123,9 @@ def node_advisory(state: AgentState) -> AgentState:
     window_hits, window_min_hits = _extract_lev_hits(evidence)
 
     out = AdviceOutput(
-        advice=Advice.CONSIDER_EARLY_STOP if d_advice == "consider-early-stop" else Advice.CONTINUE,
+        advice=Advice.CONSIDER_EARLY_STOP
+        if d_advice == "consider-early-stop"
+        else Advice.CONTINUE,
         confidence=float(d_conf),
         rationale=[],
         policy_version=cfg["policy"]["policy_version"],
@@ -155,10 +161,12 @@ def _explain_impl(state: AgentState) -> AgentState:
     has_ess_info = any(("ess_check" in e or "ess_termination" in e) for e in evidence)
     has_lev_term = any(("lev_termination" in e) for e in evidence)
     has_ess_term = any(("ess_termination" in e) for e in evidence)
-    is_stop = (getattr(d.advice, "value", str(d.advice)) == "consider-early-stop")
+    is_stop = getattr(d.advice, "value", str(d.advice)) == "consider-early-stop"
 
-    omit_ess = (decision_mode == "lev")
-    suppress_ess = (decision_mode == "min" and is_stop and has_lev_term and not has_ess_term)
+    omit_ess = decision_mode == "lev"
+    suppress_ess = (
+        decision_mode == "min" and is_stop and has_lev_term and not has_ess_term
+    )
 
     bullets: List[str] = []
     bullets.append(f"- decision_mode=`{decision_mode}`")
@@ -185,17 +193,23 @@ def _explain_impl(state: AgentState) -> AgentState:
             bullets.append(f"- stable_sum={stable_sum} needed>={needed_str}")
 
         if "lev_termination" in e:
-            bullets.append(f"- LEV termination at end_ev={e['lev_termination']['end_ev']}")
+            bullets.append(
+                f"- LEV termination at end_ev={e['lev_termination']['end_ev']}"
+            )
 
         # ESS details: conditional
         if "ess_check" in e:
             if not omit_ess and not suppress_ess:
                 c = e["ess_check"]
-                bullets.append(f"- ESS davg={c['davg']:.6f} threshold={c['threshold']:.6f}")
+                bullets.append(
+                    f"- ESS davg={c['davg']:.6f} threshold={c['threshold']:.6f}"
+                )
 
         if "ess_termination" in e:
             if not omit_ess and not suppress_ess:
-                bullets.append(f"- ESS termination at end_ess={e['ess_termination']['end_ess']}")
+                bullets.append(
+                    f"- ESS termination at end_ess={e['ess_termination']['end_ess']}"
+                )
 
         if "fail_open" in e:
             bullets.append(f"- Fail-open: {e}")
@@ -259,7 +273,6 @@ def build_graph() -> Any:
     g.add_node("advisory_decision", node_advisory)
     g.add_node("explanation", node_explanation)
 
-    # NEW (Paso 1B)
     g.add_node("llm_explanation", node_llm_explanation)
 
     g.add_node("provenance_log", node_prov)
@@ -269,7 +282,7 @@ def build_graph() -> Any:
     g.add_edge("compute_lev", "advisory_decision")
     g.add_edge("advisory_decision", "explanation")
 
-    # NEW (Paso 1B): insert LLM explanation between explanation and provenance
+    # insert LLM explanation between explanation and provenance
     g.add_edge("explanation", "llm_explanation")
     g.add_edge("llm_explanation", "provenance_log")
 
